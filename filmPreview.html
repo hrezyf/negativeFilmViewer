@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摄像头预览</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .camera-selector {
+            margin: 20px 0;
+            padding: 10px;
+            width: 100%;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%; /* 4:3 宽高比 */
+            background-color: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            height:100vh;
+        }
+        .video-container:fullscreen {
+            padding-top: 0;
+            border-radius: 0;
+        }
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            mix-blend-mode: lighten;
+        }
+        .c-overlay {
+            background: rgba(255, 0, 0 , 1);
+        }
+        .m-overlay {
+            background: rgba( 0, 255, 0, 1);
+        }
+        .y-overlay {
+            background: rgba(0, 0, 255,  1);
+        }
+        .k-overlay {
+            background: rgba(0, 0, 0, 1);
+            mix-blend-mode: overlay;
+        }
+        .fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+        .opacity-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 0;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px 10px 0 0;
+            color: white;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 100;
+        }
+        .opacity-controls.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .opacity-controls h3 {
+            color: white;
+            margin-top: 0;
+        }
+        .opacity-control {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        .opacity-control label {
+            width: 80px;
+            font-weight: bold;
+        }
+        .opacity-control input[type="range"] {
+            flex: 1;
+            margin: 0 10px;
+        }
+        .opacity-control span {
+            width: 50px;
+            text-align: right;
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+            margin: 10px 0;
+            display: none;
+        }
+        .device-info {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>摄像头预览</h1>
+
+        <div class="device-info" id="deviceInfo">
+            正在检测摄像头设备...
+        </div>
+
+        <select id="cameraSelector" class="camera-selector">
+            <option value="">选择摄像头...</option>
+        </select>
+
+        <div class="video-container" id="videoContainer">
+            <!-- <img src="./demo.jpg" alt=""> -->
+            <video id="videoElement" style="
+                filter: invert(1);
+            " autoplay playsinline></video>
+            <div class="overlay c-overlay" id="cOverlay"></div>
+            <div class="overlay m-overlay" id="mOverlay"></div>
+            <div class="overlay y-overlay" id="yOverlay"></div>
+            <div class="overlay k-overlay" id="kOverlay"></div>
+            <button class="fullscreen-btn" id="fullscreenBtn">⛶ 全屏</button>
+            <div class="opacity-controls" id="opacityControls">
+                <h3>CMYK 涂层不透明度</h3>
+                <div class="opacity-control">
+                    <label>r (红)</label>
+                    <input type="range" id="cOpacity" min="0" max="100" value="0">
+                    <span id="cOpacityValue">0%</span>
+                </div>
+                <div class="opacity-control">
+                    <label>g (绿)</label>
+                    <input type="range" id="mOpacity" min="0" max="100" value="0">
+                    <span id="mOpacityValue">0%</span>
+                </div>
+                <div class="opacity-control">
+                    <label>b (蓝)</label>
+                    <input type="range" id="yOpacity" min="0" max="100" value="0">
+                    <span id="yOpacityValue">0%</span>
+                </div>
+                <div class="opacity-control">
+                    <label>K (对比度)</label>
+                    <input type="range" id="kOpacity" min="0" max="100" value="0">
+                    <span id="kOpacityValue">0%</span>
+                </div>
+                <h3>视频明度</h3>
+                <div class="opacity-control">
+                    <label>明度</label>
+                    <input type="range" id="brightnessRange" min="0" max="200" value="100">
+                    <span id="brightnessValue">100%</span>
+                </div>
+                <h3>相机曝光</h3>
+                <div class="opacity-control">
+                    <label>曝光</label>
+                    <input type="range" id="exposureRange" min="-2" max="2" step="0.1" value="0">
+                    <span id="exposureValue">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="stopButton" disabled>停止预览</button>
+        </div>
+
+        <!-- <div class="opacity-controls">
+            <h3>CMYK 涂层不透明度</h3>
+            <div class="opacity-control">
+                <label>C (青色)</label>
+                <input type="range" id="cOpacity" min="0" max="100" value="0">
+                <span id="cOpacityValue">0%</span>
+            </div>
+            <div class="opacity-control">
+                <label>M (洋红)</label>
+                <input type="range" id="mOpacity" min="0" max="100" value="0">
+                <span id="mOpacityValue">0%</span>
+            </div>
+            <div class="opacity-control">
+                <label>Y (黄色)</label>
+                <input type="range" id="yOpacity" min="0" max="100" value="0">
+                <span id="yOpacityValue">0%</span>
+            </div>
+            <div class="opacity-control">
+                <label>K (黑色)</label>
+                <input type="range" id="kOpacity" min="0" max="100" value="0">
+                <span id="kOpacityValue">0%</span>
+            </div>
+        </div> -->
+
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        let currentStream = null;
+        const videoElement = document.getElementById('videoElement');
+        const cameraSelector = document.getElementById('cameraSelector');
+        const stopButton = document.getElementById('stopButton');
+        const errorMessage = document.getElementById('errorMessage');
+        const deviceInfo = document.getElementById('deviceInfo');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const videoContainer = document.getElementById('videoContainer');
+
+        // CMYK 涂层元素
+        const cOverlay = document.getElementById('cOverlay');
+        const mOverlay = document.getElementById('mOverlay');
+        const yOverlay = document.getElementById('yOverlay');
+        const kOverlay = document.getElementById('kOverlay');
+
+        // 不透明度滑块
+        const cOpacity = document.getElementById('cOpacity');
+        const mOpacity = document.getElementById('mOpacity');
+        const yOpacity = document.getElementById('yOpacity');
+        const kOpacity = document.getElementById('kOpacity');
+
+        // 不透明度值显示
+        const cOpacityValue = document.getElementById('cOpacityValue');
+        const mOpacityValue = document.getElementById('mOpacityValue');
+        const yOpacityValue = document.getElementById('yOpacityValue');
+        const kOpacityValue = document.getElementById('kOpacityValue');
+        const opacityControls = document.getElementById('opacityControls');
+        const brightnessRange = document.getElementById('brightnessRange');
+        const brightnessValue = document.getElementById('brightnessValue');
+        const exposureRange = document.getElementById('exposureRange');
+        const exposureValue = document.getElementById('exposureValue');
+        updateOverlayOpacity(cOverlay, 0, cOpacityValue)
+        updateOverlayOpacity(mOverlay, 0, cOpacityValue)
+        updateOverlayOpacity(yOverlay, 0, cOpacityValue)
+        updateOverlayOpacity(kOverlay, 0, cOpacityValue)
+
+        // 更新涂层不透明度
+        function updateOverlayOpacity(overlay, value, displayElement) {
+            overlay.style.opacity = value / 100;
+            displayElement.textContent = value + '%';
+        }
+
+        // 更新视频明度
+        function updateBrightness(value) {
+            videoElement.style.filter = `invert(1) brightness(${value}%)`;
+            brightnessValue.textContent = value + '%';
+        }
+
+        // 更新相机曝光
+        function updateExposure(value) {
+            exposureValue.textContent = value;
+            if (currentStream) {
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const capabilities = videoTrack.getCapabilities();
+
+                // 检查设备是否支持曝光调节
+                if (capabilities.exposureCompensation) {
+                    const settings = {
+                        advanced: [{
+                            exposureCompensation: value
+                        }]
+                    };
+                    videoTrack.applyConstraints(settings).catch(err => {
+                        console.log('曝光调节不支持或失败:', err);
+                    });
+                }
+            }
+        }
+
+        // 切换不透明度控制面板的显示/隐藏
+        function toggleOpacityControls(e) {
+            // 防止点击控制面板时触发切换
+            if (opacityControls.contains(e.target)) {
+                e.stopPropagation();
+                return;
+            }
+            opacityControls.classList.toggle('show');
+        }
+
+        // 全屏功能
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(err => {
+                    showError('无法进入全屏模式: ' + err.message);
+                });
+                fullscreenBtn.textContent = '⛶ 退出全屏';
+            } else {
+                document.exitFullscreen();
+                fullscreenBtn.textContent = '⛶ 全屏';
+            }
+        }
+
+        // 监听全屏变化
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fullscreenBtn.textContent = '⛶ 全屏';
+            }
+        });
+
+        // 获取摄像头列表
+        async function getCameras() {
+            try {
+                // 首先请求摄像头权限
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+
+                // 获取所有视频输入设备
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                // 更新设备信息
+                deviceInfo.textContent = `检测到 ${videoDevices.length} 个摄像头设备`;
+
+                // 清空选择器
+                cameraSelector.innerHTML = '<option value="">选择摄像头...</option>';
+
+                // 添加摄像头选项
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId || `camera-${index}`;
+                    option.text = device.label || `摄像头 ${index + 1}`;
+                    cameraSelector.appendChild(option);
+                });
+
+                // 如果只有一个摄像头，自动选择
+                if (videoDevices.length === 1) {
+                    cameraSelector.selectedIndex = 1;
+                    await startPreview();
+                }
+
+                return videoDevices;
+            } catch (error) {
+                deviceInfo.textContent = '无法检测到摄像头设备';
+                showError('无法访问摄像头：' + error.message);
+                return [];
+            }
+        }
+
+        // 开始预览
+        async function startPreview() {
+            const selectedOption = cameraSelector.options[cameraSelector.selectedIndex];
+            if (!selectedOption || selectedOption.value === '') {
+                // 不显示错误，等待用户选择摄像头
+                return;
+            }
+
+            try {
+                let constraints;
+                const deviceId = selectedOption.value;
+
+                // 根据是否有deviceId设置不同的约束
+                if (deviceId && deviceId.startsWith('camera-')) {
+                    // PC端或没有deviceId的情况
+                    constraints = {
+                        video: {
+                            width: { ideal: 3840 },
+                            height: { ideal: 2880 }
+                        }
+                    };
+                } else {
+                    // 移动端有deviceId的情况
+                    constraints = {
+                        video: {
+                            deviceId: deviceId ? { exact: deviceId } : undefined,
+                            width: { ideal: 3840 },
+                            height: { ideal: 2880 }
+                        }
+                    };
+                }
+
+                // 停止当前流
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                // 获取新的视频流
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = currentStream;
+
+                // 更新按钮状态
+                stopButton.disabled = false;
+                errorMessage.style.display = 'none';
+
+                // 获取实际的视频设置
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                deviceInfo.textContent = `当前分辨率: ${settings.width}x${settings.height}`;
+
+                // 初始化曝光值
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.exposureCompensation) {
+                    exposureRange.min = capabilities.exposureCompensation.min || -2;
+                    exposureRange.max = capabilities.exposureCompensation.max || 2;
+                    exposureRange.step = capabilities.exposureCompensation.step || 0.1;
+                    exposureRange.value = settings.exposureCompensation || 0;
+                    exposureValue.textContent = exposureRange.value;
+                } else {
+                    exposureRange.disabled = true;
+                    exposureValue.textContent = '不支持';
+                }
+            } catch (error) {
+                showError('无法启动摄像头：' + error.message);
+            }
+        }
+
+        // 停止预览
+        function stopPreview() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+                currentStream = null;
+            }
+
+            // 更新按钮状态
+            stopButton.disabled = true;
+
+            // 重置曝光滑块
+            exposureRange.disabled = true;
+            exposureValue.textContent = '不支持';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // 事件监听器
+        stopButton.addEventListener('click', stopPreview);
+        cameraSelector.addEventListener('change', async () => {
+            if (currentStream) {
+                stopPreview();
+            }
+            // 自动开始新摄像头的预览
+            await startPreview();
+        });
+
+        // 全屏按钮事件
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // 不透明度滑块事件
+        cOpacity.addEventListener('input', (e) => updateOverlayOpacity(cOverlay, e.target.value, cOpacityValue));
+        mOpacity.addEventListener('input', (e) => updateOverlayOpacity(mOverlay, e.target.value, mOpacityValue));
+        yOpacity.addEventListener('input', (e) => updateOverlayOpacity(yOverlay, e.target.value, yOpacityValue));
+        kOpacity.addEventListener('input', (e) => updateOverlayOpacity(kOverlay, e.target.value, kOpacityValue));
+
+        // 明度滑块事件
+        brightnessRange.addEventListener('input', (e) => updateBrightness(e.target.value));
+
+        // 曝光滑块事件
+        exposureRange.addEventListener('input', (e) => updateExposure(e.target.value));
+
+        // 点击视频容器切换控制面板显示/隐藏
+        videoContainer.addEventListener('click', toggleOpacityControls);
+
+        // 检查浏览器支持
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showError('您的浏览器不支持摄像头访问');
+            deviceInfo.textContent = '浏览器不支持摄像头功能';
+        } else {
+            // 页面加载时获取摄像头列表
+            window.addEventListener('load', getCameras);
+
+            // 监听设备变化
+            navigator.mediaDevices.addEventListener('devicechange', getCameras);
+        }
+    </script>
+</body>
+</html>
