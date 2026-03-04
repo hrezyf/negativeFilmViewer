@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>摄像头预览</title>
+    <title>负片观片器</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -217,6 +217,17 @@
                     <input type="range" id="exposureRange" min="-2" max="2" step="0.1" value="0">
                     <span id="exposureValue">0</span>
                 </div>
+                <h3>白平衡</h3>
+                <div class="opacity-control">
+                    <label>色温</label>
+                    <input type="range" id="temperatureRange" min="2000" max="9000" step="100" value="5500">
+                    <span id="temperatureValue">5500K</span>
+                </div>
+                <div class="opacity-control">
+                    <label>色调</label>
+                    <input type="range" id="tintRange" min="-100" max="100" step="1" value="0">
+                    <span id="tintValue">0</span>
+                </div>
             </div>
         </div>
 
@@ -283,6 +294,10 @@
         const brightnessValue = document.getElementById('brightnessValue');
         const exposureRange = document.getElementById('exposureRange');
         const exposureValue = document.getElementById('exposureValue');
+        const temperatureRange = document.getElementById('temperatureRange');
+        const temperatureValue = document.getElementById('temperatureValue');
+        const tintRange = document.getElementById('tintRange');
+        const tintValue = document.getElementById('tintValue');
         updateOverlayOpacity(cOverlay, 0, cOpacityValue)
         updateOverlayOpacity(mOverlay, 0, cOpacityValue)
         updateOverlayOpacity(yOverlay, 0, cOpacityValue)
@@ -316,6 +331,48 @@
                     };
                     videoTrack.applyConstraints(settings).catch(err => {
                         console.log('曝光调节不支持或失败:', err);
+                    });
+                }
+            }
+        }
+
+        // 更新色温
+        function updateTemperature(value) {
+            temperatureValue.textContent = value + 'K';
+            if (currentStream) {
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const capabilities = videoTrack.getCapabilities();
+
+                // 检查设备是否支持色温调节
+                if (capabilities.colorTemperature) {
+                    const settings = {
+                        advanced: [{
+                            colorTemperature: parseInt(value)
+                        }]
+                    };
+                    videoTrack.applyConstraints(settings).catch(err => {
+                        console.log('色温调节不支持或失败:', err);
+                    });
+                }
+            }
+        }
+
+        // 更新色调
+        function updateTint(value) {
+            tintValue.textContent = value;
+            if (currentStream) {
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const capabilities = videoTrack.getCapabilities();
+
+                // 检查设备是否支持色调调节
+                if (capabilities.hue) {
+                    const settings = {
+                        advanced: [{
+                            hue: parseInt(value)
+                        }]
+                    };
+                    videoTrack.applyConstraints(settings).catch(err => {
+                        console.log('色调调节不支持或失败:', err);
                     });
                 }
             }
@@ -452,6 +509,30 @@
                     exposureRange.disabled = true;
                     exposureValue.textContent = '不支持';
                 }
+
+                // 初始化色温值
+                if (capabilities.colorTemperature) {
+                    temperatureRange.min = capabilities.colorTemperature.min || 2000;
+                    temperatureRange.max = capabilities.colorTemperature.max || 9000;
+                    temperatureRange.step = capabilities.colorTemperature.step || 100;
+                    temperatureRange.value = settings.colorTemperature || 5500;
+                    temperatureValue.textContent = temperatureRange.value + 'K';
+                } else {
+                    temperatureRange.disabled = true;
+                    temperatureValue.textContent = '不支持';
+                }
+
+                // 初始化色调值
+                if (capabilities.hue) {
+                    tintRange.min = capabilities.hue.min || -100;
+                    tintRange.max = capabilities.hue.max || 100;
+                    tintRange.step = capabilities.hue.step || 1;
+                    tintRange.value = settings.hue || 0;
+                    tintValue.textContent = tintRange.value;
+                } else {
+                    tintRange.disabled = true;
+                    tintValue.textContent = '不支持';
+                }
             } catch (error) {
                 showError('无法启动摄像头：' + error.message);
             }
@@ -471,6 +552,14 @@
             // 重置曝光滑块
             exposureRange.disabled = true;
             exposureValue.textContent = '不支持';
+
+            // 重置色温滑块
+            temperatureRange.disabled = true;
+            temperatureValue.textContent = '不支持';
+
+            // 重置色调滑块
+            tintRange.disabled = true;
+            tintValue.textContent = '不支持';
         }
 
         // 显示错误信息
@@ -503,6 +592,12 @@
 
         // 曝光滑块事件
         exposureRange.addEventListener('input', (e) => updateExposure(e.target.value));
+
+        // 色温滑块事件
+        temperatureRange.addEventListener('input', (e) => updateTemperature(e.target.value));
+
+        // 色调滑块事件
+        tintRange.addEventListener('input', (e) => updateTint(e.target.value));
 
         // 点击视频容器切换控制面板显示/隐藏
         videoContainer.addEventListener('click', toggleOpacityControls);
