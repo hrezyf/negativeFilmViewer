@@ -59,16 +59,16 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            mix-blend-mode: lighten;
+            mix-blend-mode: multiply;
         }
         .c-overlay {
-            background: rgba(255, 0, 0 , 1);
+            background: rgba(0, 255, 255 , 1);
         }
         .m-overlay {
-            background: rgba( 0, 255, 0, 1);
+            background: rgba( 255, 0 , 255, 1);
         }
         .y-overlay {
-            background: rgba(0, 0, 255,  1);
+            background: rgba(255, 255, 0,  1);
         }
         .k-overlay {
             background: rgba(0, 0, 0, 1);
@@ -186,17 +186,17 @@
             <div class="opacity-controls" id="opacityControls">
                 <h3>CMYK 涂层不透明度</h3>
                 <div class="opacity-control">
-                    <label>r (红)</label>
+                    <label>c (青色)</label>
                     <input type="range" id="cOpacity" min="0" max="100" value="0">
                     <span id="cOpacityValue">0%</span>
                 </div>
                 <div class="opacity-control">
-                    <label>g (绿)</label>
+                    <label>m (品色)</label>
                     <input type="range" id="mOpacity" min="0" max="100" value="0">
                     <span id="mOpacityValue">0%</span>
                 </div>
                 <div class="opacity-control">
-                    <label>b (蓝)</label>
+                    <label>y (黄色)</label>
                     <input type="range" id="yOpacity" min="0" max="100" value="0">
                     <span id="yOpacityValue">0%</span>
                 </div>
